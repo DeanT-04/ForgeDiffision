@@ -1,0 +1,1412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DiffusionForge: Exploring the Mathematics & Applications of Diffusion Models</title>
+    
+    <!-- Libraries -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.2/dist/gsap.min.js"></script>
+
+    <style>
+        :root {
+            --primary-dark: #0a1022;
+            --primary-blue: #2563eb;
+            --primary-purple: #7e22ce;
+            --primary-red: #ef4444;
+            --primary-orange: #f97316;
+            --gradient-start: #3b82f6;
+            --gradient-mid: #8b5cf6;
+            --gradient-end: #ef4444;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+        
+        h1, h2, h3, h4, h5 {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        
+        .gradient-text {
+            background: linear-gradient(90deg, var(--gradient-start), var(--gradient-mid), var(--gradient-end));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-fill-color: transparent;
+        }
+        
+        .gradient-border {
+            position: relative;
+        }
+        
+        .gradient-border::after {
+            content: "";
+            position: absolute;
+            bottom: -3px;
+            left: 25%;
+            width: 50%;
+            height: 3px;
+            background: linear-gradient(90deg, var(--gradient-start), var(--gradient-mid), var(--gradient-end));
+        }
+        
+        .section {
+            padding: 80px 20px;
+        }
+        
+        .glass-card {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .floating {
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+            100% { transform: translateY(0px); }
+        }
+        
+        .particle {
+            position: absolute;
+            opacity: 0;
+            border-radius: 50%;
+            background-color: var(--primary-blue);
+        }
+        
+        @keyframes particle-animation {
+            0% {
+                opacity: 0;
+                transform: translateY(0) translateX(0);
+            }
+            20% {
+                opacity: 1;
+            }
+            80% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-100px) translateX(var(--x-end));
+            }
+        }
+        
+        .timeline-container {
+            position: relative;
+        }
+        
+        .timeline-container::after {
+            content: '';
+            position: absolute;
+            width: 6px;
+            background: linear-gradient(180deg, var(--gradient-start), var(--gradient-mid), var(--gradient-end));
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            margin-left: -3px;
+            border-radius: 3px;
+        }
+        
+        .timeline-item {
+            padding: 10px 40px;
+            position: relative;
+            width: 50%;
+        }
+        
+        .timeline-item::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(45deg, var(--gradient-start), var(--gradient-end));
+            border-radius: 50%;
+            top: 15px;
+            z-index: 1;
+        }
+        
+        .left {
+            left: 0;
+        }
+        
+        .right {
+            left: 50%;
+        }
+        
+        .left::after {
+            right: -10px;
+        }
+        
+        .right::after {
+            left: -10px;
+        }
+        
+        @media (max-width: 768px) {
+            .timeline-container::after {
+                left: 31px;
+            }
+            
+            .timeline-item {
+                width: 100%;
+                padding-left: 70px;
+                padding-right: 25px;
+            }
+            
+            .left::after, .right::after {
+                left: 21px;
+            }
+            
+            .right {
+                left: 0;
+            }
+        }
+        
+        .diffusion-animation-container {
+            display: flex;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            scrollbar-width: none; /* Firefox */
+        }
+        
+        .diffusion-animation-container::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
+        }
+        
+        .diffusion-frame {
+            scroll-snap-align: start;
+            flex: 0 0 auto;
+            margin-right: 10px;
+            transition: transform 0.3s ease;
+        }
+        
+        .diffusion-frame:hover {
+            transform: scale(1.05);
+        }
+        
+        .equation-card {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            overflow-x: auto;
+        }
+        
+        /* Apply grid layouts for responsive design */
+        @media (min-width: 768px) {
+            .grid-2 {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 2rem;
+            }
+            
+            .grid-3 {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 2rem;
+            }
+        }
+        
+        @media (max-width: 767px) {
+            .grid-2, .grid-3 {
+                display: flex;
+                flex-direction: column;
+                gap: 2rem;
+            }
+        }
+        
+        .progress-container {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            height: 4px;
+            background: transparent;
+            z-index: 1000;
+        }
+        
+        .progress-bar {
+            height: 4px;
+            background: linear-gradient(90deg, var(--gradient-start), var(--gradient-mid), var(--gradient-end));
+            width: 0%;
+        }
+        
+        /* Parameter chart styling */
+        .parameter-container {
+            position: relative;
+            height: 400px;
+        }
+        
+        /* Animation for noise transition */
+        @keyframes noise-transition {
+            0% { opacity: 1; }
+            25% { opacity: 0.75; }
+            50% { opacity: 0.5; }
+            75% { opacity: 0.25; }
+            100% { opacity: 0; }
+        }
+        
+        .noise-dot {
+            position: absolute;
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background-color: #fff;
+        }
+        
+        /* Scroll indicator */
+        .scroll-indicator {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            animation: bounce 2s infinite;
+        }
+
+        /* Animated visualization */
+        .diffusion-demo {
+            height: 160px;
+            position: relative;
+            background: rgb(30, 41, 59);
+            border-radius: 8px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        
+        .diffusion-circle {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background: rgb(250, 204, 21);
+            border-radius: 50%;
+            top: 50%;
+            left: 10%;
+            transform: translateY(-50%);
+            transition: all 0.5s ease-in-out;
+        }
+        
+        .noise-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJub2lzZSIgeD0iMCIgeT0iMCIgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuNjUiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVzPSJzdGl0Y2giIHJlc3VsdD0ibm9pc2UiLz48ZmVTcGVjdWxhckxpZ2h0aW5nIHNwZWN1bGFyRXhwb25lbnQ9IjIwIiBsaWdodGluZy1jb2xvcj0iIzIyMiIgc3VyZmFjZVNjYWxlPSIyIiByZXN1bHQ9InNwZWN1bGFyIj48ZmVEaXN0YW50TGlnaHQgYXppbXV0aD0iMyIgZWxldmF0aW9uPSI5MCIvPjwvZmVTcGVjdWxhckxpZ2h0aW5nPjwvZmlsdGVyPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbHRlcj0idXJsKCNub2lzZSkiLz48L3N2Zz4=');
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            justify-content: center;
+        }
+        
+        .control-button {
+            background: linear-gradient(to right, var(--gradient-start), var(--gradient-mid));
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .control-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        /* Cool bubble animation for hero section */
+        .bubble {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.05));
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(2px);
+            animation: float-up var(--duration) ease-in-out infinite;
+            opacity: 0.5;
+        }
+        
+        @keyframes float-up {
+            0% { transform: translateY(100vh) scale(1); opacity: 0.5; }
+            50% { opacity: 0.8; }
+            100% { transform: translateY(-100px) scale(1.2); opacity: 0; }
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0) translateX(-50%); }
+            40% { transform: translateY(-30px) translateX(-50%); }
+            60% { transform: translateY(-15px) translateX(-50%); }
+        }
+        
+        /* Interactive diffusion slider */
+        .diffusion-slider-container {
+            width: 100%;
+            padding: 20px 0;
+        }
+        
+        .diffusion-slider {
+            width: 100%;
+            height: 10px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .diffusion-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, var(--gradient-start), var(--gradient-end));
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+        
+        .diffusion-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, var(--gradient-start), var(--gradient-end));
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+        
+        .interactive-card {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .interactive-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 0 30px rgba(99, 102, 241, 0.3);
+        }
+        
+        /* Animation for steps */
+        .step-animation {
+            position: relative;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        
+        .step-progress {
+            position: absolute;
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--gradient-start), var(--gradient-mid), var(--gradient-end));
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+        
+        /* Responsive header nav */
+        .nav-link {
+            position: relative;
+            color: #e2e8f0;
+            text-decoration: none;
+            padding: 5px 0;
+            transition: color 0.3s;
+        }
+        
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: 0;
+            left: 0;
+            background: linear-gradient(90deg, var(--gradient-start), var(--gradient-end));
+            transition: width 0.3s ease;
+        }
+        
+        .nav-link:hover::after {
+            width: 100%;
+        }
+        
+        .nav-link:hover {
+            color: white;
+        }
+        
+        /* Animated cards */
+        .animated-card {
+            transition: all 0.5s ease;
+            transform: perspective(1000px) rotateX(0) rotateY(0);
+            transform-style: preserve-3d;
+        }
+        
+        .animated-card:hover {
+            transform: perspective(1000px) rotateX(2deg) rotateY(5deg);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        /* Print styles for PDF export */
+        @media print {
+            body {
+                width: 100%;
+                margin: 0;
+                padding: 0;
+                background-color: white;
+                color: black;
+            }
+            
+            .section {
+                padding: 20px;
+            }
+            
+            .glass-card {
+                background: white;
+                box-shadow: none;
+                border: 1px solid #ddd;
+            }
+            
+            .progress-container {
+                display: none;
+            }
+            
+            .scroll-indicator {
+                display: none;
+            }
+            
+            .gradient-text {
+                color: #333;
+                -webkit-text-fill-color: #333;
+            }
+        }
+
+        /* Sticky navigation with backdrop filter */
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background-color: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Responsive menu */
+        .mobile-menu {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .desktop-nav {
+                display: none;
+            }
+            .mobile-menu {
+                display: block;
+            }
+        }
+
+        /* Flip animation for cards */
+        .flip-card {
+            perspective: 1000px;
+            height: 300px;
+        }
+
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.8s;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card:hover .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front, .flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 16px;
+        }
+
+        .flip-card-front {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .flip-card-back {
+            background: linear-gradient(135deg, var(--primary-blue), var(--primary-purple));
+            transform: rotateY(180deg);
+            padding: 20px;
+        }
+
+        /* Enhanced timeline */
+        .timeline-item .timeline-content {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .timeline-item .timeline-content:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Animated section headers */
+        .animate-header {
+            display: inline-block;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        .animate-header span {
+            display: inline-block;
+            opacity: 0;
+            transform: translateY(100%);
+            animation: revealText 0.5s forwards;
+        }
+
+        @keyframes revealText {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="sticky-nav">
+        <div class="container mx-auto px-6 py-2">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center">
+                    <img src="https://page1.genspark.site/v1/base64_upload/78f221cafdaa44cab6f81bf7b697e533" alt="DiffusionForge Logo" class="h-10">
+                    <span class="ml-3 text-xl font-bold gradient-text">DiffusionForge</span>
+                </div>
+                
+                <!-- Desktop Navigation -->
+                <ul class="desktop-nav hidden md:flex space-x-8">
+                    <li><a href="#abstract" class="nav-link">Abstract</a></li>
+                    <li><a href="#foundations" class="nav-link">Theory</a></li>
+                    <li><a href="#mathematics" class="nav-link">Math</a></li>
+                    <li><a href="#implementation" class="nav-link">Implementation</a></li>
+                    <li><a href="#applications" class="nav-link">Applications</a></li>
+                </ul>
+                
+                <!-- Mobile Menu Button -->
+                <div class="mobile-menu md:hidden">
+                    <button id="menuButton" class="text-white focus:outline-none">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Mobile Navigation Menu -->
+            <div id="mobileNav" class="hidden md:hidden mt-4 pb-2">
+                <ul class="space-y-3">
+                    <li><a href="#abstract" class="nav-link block">Abstract</a></li>
+                    <li><a href="#foundations" class="nav-link block">Theory</a></li>
+                    <li><a href="#mathematics" class="nav-link block">Math</a></li>
+                    <li><a href="#implementation" class="nav-link block">Implementation</a></li>
+                    <li><a href="#applications" class="nav-link block">Applications</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Progress Bar -->
+    <div class="progress-container">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="section min-h-screen flex flex-col items-center justify-center relative overflow-hidden" id="hero">
+        <!-- Background bubbles -->
+        <div id="bubbles" class="absolute inset-0 z-0"></div>
+        <div id="particles" class="absolute inset-0 z-0"></div>
+        
+        <!-- Logo and Title -->
+        <div class="container mx-auto text-center z-10" data-aos="fade-up">
+            <img src="https://page1.genspark.site/v1/base64_upload/78f221cafdaa44cab6f81bf7b697e533" alt="DiffusionForge Logo" class="w-64 md:w-80 mx-auto floating mb-8">
+            <h1 class="text-4xl md:text-6xl font-bold mb-4">
+                <span class="animate-header">
+                    <span style="animation-delay: 0.1s">D</span>
+                    <span style="animation-delay: 0.2s">i</span>
+                    <span style="animation-delay: 0.3s">f</span>
+                    <span style="animation-delay: 0.4s">f</span>
+                    <span style="animation-delay: 0.5s">u</span>
+                    <span style="animation-delay: 0.6s">s</span>
+                    <span style="animation-delay: 0.7s">i</span>
+                    <span style="animation-delay: 0.8s">o</span>
+                    <span style="animation-delay: 0.9s">n</span>
+                    <span style="animation-delay: 1s">F</span>
+                    <span style="animation-delay: 1.1s">o</span>
+                    <span style="animation-delay: 1.2s">r</span>
+                    <span style="animation-delay: 1.3s">g</span>
+                    <span style="animation-delay: 1.4s">e</span>
+                </span>
+            </h1>
+            <p class="text-xl md:text-2xl text-gray-300 mb-8 opacity-0" id="heroSubtitle">Exploring the Mathematics and Applications of Diffusion Models</p>
+            <p class="text-gray-400 max-w-3xl mx-auto opacity-0" id="heroDescription">A Comprehensive Analysis of Generative AI's Latest Frontier</p>
+            
+            <div class="mt-12 opacity-0" id="heroButton">
+                <a href="#introduction" class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-full font-medium hover:opacity-90 transition-opacity">
+                    Start Exploring
+                </a>
+            </div>
+        </div>
+        
+        <!-- Interactive diffusion demo -->
+        <div class="w-full max-w-lg mx-auto mt-16 z-10 opacity-0" id="heroDiffusionDemo">
+            <div class="diffusion-demo">
+                <div class="diffusion-circle" id="diffusionCircle"></div>
+                <div class="noise-overlay" id="noiseOverlay"></div>
+            </div>
+            <div class="diffusion-slider-container">
+                <input type="range" min="0" max="100" value="0" class="diffusion-slider" id="diffusionSlider">
+                <div class="flex justify-between text-gray-400 text-sm mt-1">
+                    <span>Clean Data</span>
+                    <span>Noisy Data</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Scroll indicator -->
+        <div class="scroll-indicator text-white">
+            <i class="fas fa-chevron-down fa-2x"></i>
+        </div>
+    </section>
+
+    <!-- Abstract Section -->
+    <section class="section bg-gray-900" id="abstract">
+        <div class="container mx-auto">
+            <h2 class="text-3xl md:text-4xl font-bold mb-6 text-center gradient-text gradient-border" data-aos="fade-up">Abstract</h2>
+            <div class="glass-card animated-card" data-aos="fade-up" data-aos-delay="200">
+                <p class="mb-4">This paper presents a comprehensive exploration of diffusion models, a class of generative models that have revolutionised image synthesis and other generative tasks. We examine the mathematical foundations, historical development, and practical applications of diffusion models, with particular focus on their implementation in contemporary AI systems.</p>
+                <p class="mb-4">Through original visualisations and simulations, we demonstrate the forward and reverse diffusion processes that underpin these models. Our analysis reveals how diffusion models have surpassed previous generative approaches in both quality and versatility, whilst highlighting their computational challenges and future research directions.</p>
+                <p>This work contributes to the growing body of knowledge on generative AI techniques and provides insights for practitioners seeking to implement diffusion-based solutions.</p>
+                
+                <div class="mt-6 italic text-gray-300">
+                    <p><strong>Keywords:</strong> diffusion models, generative AI, denoising diffusion probabilistic models, image synthesis, deep learning</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Introduction Section -->
+    <section class="section" id="introduction">
+        <div class="container mx-auto">
+            <h2 class="text-3xl md:text-4xl font-bold mb-6 text-center gradient-text gradient-border" data-aos="fade-up">I. Introduction</h2>
+            <div class="glass-card animated-card" data-aos="fade-up" data-aos-delay="200">
+                <p class="mb-4">The landscape of generative artificial intelligence has undergone a remarkable transformation in recent years, with diffusion models emerging as a dominant paradigm for high-quality image generation and other creative tasks. Unlike their predecessors—Generative Adversarial Networks (GANs) and Variational Autoencoders (VAEs)—diffusion models offer superior stability, diversity, and fidelity in generated outputs, albeit at the cost of increased computational demands during inference.</p>
+                
+                <p class="mb-4">The fundamental intuition behind diffusion models draws inspiration from non-equilibrium thermodynamics, specifically the process by which particles disperse or "diffuse" over time. In the context of machine learning, this translates to a two-phase approach:</p>
+                
+                <div class="grid-2 my-6">
+                    <div class="p-4 bg-blue-900 bg-opacity-30 rounded-lg hover:bg-opacity-50 transition-all duration-300">
+                        <h4 class="text-lg font-semibold mb-2 text-blue-300"><i class="fas fa-arrow-right mr-2"></i>Forward Process</h4>
+                        <p>Systematically adds Gaussian noise to training data</p>
+                        
+                        <!-- Interactive step animation for forward process -->
+                        <div class="step-animation mt-4">
+                            <div class="step-progress" id="forwardProgress"></div>
+                        </div>
+                    </div>
+                    <div class="p-4 bg-purple-900 bg-opacity-30 rounded-lg hover:bg-opacity-50 transition-all duration-300">
+                        <h4 class="text-lg font-semibold mb-2 text-purple-300"><i class="fas fa-arrow-left mr-2"></i>Reverse Process</h4>
+                        <p>Learns to recover the original data by iteratively removing noise</p>
+                        
+                        <!-- Interactive step animation for reverse process -->
+                        <div class="step-animation mt-4">
+                            <div class="step-progress" id="reverseProgress"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <p>This elegant mathematical framework has proven remarkably effective for generating complex, high-dimensional data distributions. This paper aims to provide a thorough examination of diffusion models, beginning with their theoretical underpinnings and historical development, proceeding to their mathematical formulation, and concluding with their applications and future prospects.</p>
+                
+                <div class="mt-6 flex justify-center">
+                    <div class="control-buttons">
+                        <button class="control-button" id="startForwardAnimation">
+                            <i class="fas fa-play mr-2"></i>Forward Process
+                        </button>
+                        <button class="control-button" id="startReverseAnimation">
+                            <i class="fas fa-play mr-2"></i>Reverse Process
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Theoretical Foundations Section -->
+    <section class="section bg-gray-900" id="foundations">
+        <div class="container mx-auto">
+            <h2 class="text-3xl md:text-4xl font-bold mb-6 text-center gradient-text gradient-border" data-aos="fade-up">II. Theoretical Foundations and Historical Context</h2>
+            
+            <div class="glass-card mb-8 interactive-card" data-aos="fade-up" data-aos-delay="200">
+                <h3 class="text-2xl font-bold mb-4 text-blue-400">A. From Physics to Machine Learning</h3>
+                <p class="mb-4">The concept of diffusion as a generative process in machine learning was first introduced by Sohl-Dickstein et al. in their 2015 paper, "Deep Unsupervised Learning using Nonequilibrium Thermodynamics". Their approach applied Langevin dynamics, a method for modelling the movement of molecular systems, to establish the core premise of diffusion models: transforming data into noise, and subsequently transforming noise into data.</p>
+                <p>Independently, Song and Ermon developed a type of energy-based model called a "noise conditional score network" in their 2019 paper, "Generative Modeling by Estimating Gradients of the Data Distribution". Their algorithm modelled the gradient of the logarithm of the probability density function, known as the Stein score or simply the "score function." This approach offered advantages over conventional probability density functions, as it eliminated the need for a normalising constant.</p>
+            </div>
+            
+            <div class="timeline-container my-16" data-aos="fade-up" data-aos-delay="300">
+                <div class="timeline-item left" data-aos="fade-right">
+                    <div class="timeline-content glass-card hover:shadow-lg transition-shadow">
+                        <h4 class="text-lg font-bold">2015</h4>
+                        <p>Sohl-Dickstein introduces diffusion models through nonequilibrium thermodynamics</p>
+                    </div>
+                </div>
+                <div class="timeline-item right" data-aos="fade-left">
+                    <div class="timeline-content glass-card hover:shadow-lg transition-shadow">
+                        <h4 class="text-lg font-bold">2019</h4>
+                        <p>Song and Ermon develop noise conditional score networks</p>
+                    </div>
+                </div>
+                <div class="timeline-item left" data-aos="fade-right">
+                    <div class="timeline-content glass-card hover:shadow-lg transition-shadow">
+                        <h4 class="text-lg font-bold">2020</h4>
+                        <p>Ho et al. introduce Denoising Diffusion Probabilistic Models (DDPMs)</p>
+                    </div>
+                </div>
+                <div class="timeline-item right" data-aos="fade-left">
+                    <div class="timeline-content glass-card hover:shadow-lg transition-shadow">
+                        <h4 class="text-lg font-bold">2021</h4>
+                        <p>Dhariwal and Nichol prove diffusion models surpass GANs on image synthesis</p>
+                    </div>
+                </div>
+                <div class="timeline-item left" data-aos="fade-right">
+                    <div class="timeline-content glass-card hover:shadow-lg transition-shadow">
+                        <h4 class="text-lg font-bold">2022</h4>
+                        <p>Latent Diffusion Models emerge, leading to Stable Diffusion</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="glass-card mb-8 interactive-card" data-aos="fade-up" data-aos-delay="200">
+                <h3 class="text-2xl font-bold mb-4 text-purple-400">B. The Breakthrough of DDPMs</h3>
+                <p class="mb-4">The watershed moment for diffusion models came in 2020 with Ho et al.'s seminal paper, "Denoising Diffusion Probabilistic Models" (DDPMs). By implementing Sohl-Dickstein's approach using score matching, they demonstrated that diffusion models could achieve image quality competitive with GANs, which were the state-of-the-art at that time.</p>
+                <p>These connections were further explored by Song, Ermon, Sohl-Dickstein, and others—including Diederik P. Kingma, creator of the VAE—in their 2021 paper, "Score-Based Generative Modeling through Stochastic Differential Equations." Later that year, Dhariwal and Nichol published "Diffusion Models Beat GANs on Image Synthesis", firmly establishing diffusion models as the new state-of-the-art in image generation.</p>
+            </div>
+            
+            <div class="glass-card interactive-card" data-aos="fade-up" data-aos-delay="300">
+                <h3 class="text-2xl font-bold mb-4 text-red-400">C. Contemporary Developments</h3>
+                <p class="mb-4">The influential 2022 paper "High-Resolution Image Synthesis with Latent Diffusion Models" marked important advancements in efficiency and cost-effectiveness. This work laid the groundwork for Stable Diffusion, one of the most widely used open-source image generation models.</p>
+                <p>Concurrently, commercial applications like DALL-E 2, Midjourney, and Google's Imagen have demonstrated the remarkable capabilities of diffusion models in creative contexts.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Mathematical Framework Section -->
+    <section class="section" id="mathematics">
+        <div class="container mx-auto">
+            <h2 class="text-3xl md:text-4xl font-bold mb-6 text-center gradient-text gradient-border" data-aos="fade-up">III. Mathematical Framework</h2>
+            
+            <!-- Forward Diffusion Process -->
+            <div class="glass-card mb-8 interactive-card" data-aos="fade-up" data-aos-delay="200">
+                <h3 class="text-2xl font-bold mb-4 text-blue-400">A. Forward Diffusion Process</h3>
+                <p class="mb-4">The forward diffusion process can be formulated as a Markov chain that gradually adds Gaussian noise to the original data. Given a data point x₀ sampled from the real data distribution q(x), we define a forward diffusion process by adding noise at each step of the chain.</p>
+                
+                <div class="equation-card">
+                    <p>At each step t of the Markov chain, we add Gaussian noise with variance βₜ to xₜ₋₁, producing a new latent variable xₜ with distribution q(xₜ|xₜ₋₁). This can be formulated as:</p>
+                    <div class="flex justify-center my-4">
+
+                        \[ q(x_t|x_{t-1}) = \mathcal{N}(x_t; \mu_t = \sqrt{1-\beta_t}x_{t-1}, \Sigma_t = \beta_t I) \]
+                    </div>
+                    <p>Where I is the identity matrix, indicating that each dimension has the same standard deviation βₜ.</p>
+                </div>
+                
+                <p class="mt-4">An important property of this process is that, for a sufficiently large number of steps T, the distribution of xₜ approaches an isotropic Gaussian distribution. This means that after many steps, the data becomes indistinguishable from pure noise.</p>
+                
+                <!-- Forward Diffusion Visualization -->
+                <div class="my-8">
+                    <h4 class="text-xl font-semibold mb-4">Forward Diffusion Visualization</h4>
+                    <p class="mb-4 text-gray-300">The image below shows the gradual addition of noise to a simple circular image over 10 timesteps:</p>
+                    <div class="diffusion-animation-container py-4">
+                        <img src="https://page1.genspark.site/v1/base64_upload/1d773a881df092aaf54442dcf7f2108b" alt="Forward Diffusion Process" class="w-full md:w-3/4 mx-auto rounded-lg hover:shadow-xl transition-shadow duration-300">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Reverse Diffusion Process -->
+            <div class="glass-card mb-8 interactive-card" data-aos="fade-up" data-aos-delay="300">
+                <h3 class="text-2xl font-bold mb-4 text-purple-400">B. Reverse Diffusion Process</h3>
+                <p class="mb-4">The reverse diffusion process aims to learn how to recover the original data by reversing the noising process. This is achieved by training a neural network to predict the noise that was added at each step, allowing us to gradually denoise the data.</p>
+                
+                <div class="equation-card">
+                    <p>The reverse process can be formulated as:</p>
+                    <div class="flex justify-center my-4">
+
+                        \[ p(x_{t-1}|x_t) = \mathcal{N}(x_{t-1}; \mu_t(x_t, \theta), \Sigma_t(x_t, \theta)) \]
+                    </div>
+                    <p>Where μₜ and Σₜ are parameterised by a neural network with parameters θ.</p>
+                </div>
+                
+                <!-- Reverse Diffusion Visualization -->
+                <div class="my-8">
+                    <h4 class="text-xl font-semibold mb-4">Reverse Diffusion Visualization</h4>
+                    <p class="mb-4 text-gray-300">The image below shows the gradual denoising from random noise to a structured image over 10 timesteps:</p>
+                    <div class="diffusion-animation-container py-4">
+                        <img src="https://page1.genspark.site/v1/base64_upload/0aaff153697a3aa71ec9ad67beee2e89" alt="Reverse Diffusion Process" class="w-full md:w-3/4 mx-auto rounded-lg hover:shadow-xl transition-shadow duration-300">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Training Objective -->
+            <div class="glass-card interactive-card" data-aos="fade-up" data-aos-delay="400">
+                <h3 class="text-2xl font-bold mb-4 text-red-400">C. Training Objective</h3>
+                <p class="mb-4">The training objective for diffusion models is to maximise the likelihood of the training data. This is typically achieved by minimising the variational upper bound on the negative log likelihood, which can be expressed as:</p>
+                
+                <div class="equation-card">
+                    <div class="flex justify-center my-4">
+
+                        \[ L = \mathbb{E}_q[\log q(x_t|x_0) - \log p(x_{t-1}|x_t)] \]
+                    </div>
+                    <p>In practice, this is often simplified to a form of denoising score matching, where the model is trained to predict the noise that was added to the data at each step.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Implementation and Visualization Section -->
+    <section class="section bg-gray-900" id="implementation">
+        <div class="container mx-auto">
+            <h2 class="text-3xl md:text-4xl font-bold mb-6 text-center gradient-text gradient-border" data-aos="fade-up">IV. Implementation and Visualization</h2>
+            
+            <!-- Diffusion Parameters -->
+            <div class="glass-card mb-8 interactive-card" data-aos="fade-up" data-aos-delay="200">
+                <h3 class="text-2xl font-bold mb-4 text-blue-400">B. Diffusion Parameters</h3>
+                <p class="mb-4">The behavior of the diffusion process is governed by several key parameters that evolve over time. These parameters determine how noise is added during the forward process and how it is removed during the reverse process.</p>
+                
+                <div class="my-8">
+                    <img src="https://page1.genspark.site/v1/base64_upload/762a5beb119606ba6365b22343b4eb17" alt="Diffusion Parameters" class="w-full md:w-4/5 mx-auto rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
+                    
+                    <div class="mt-6 text-gray-300 text-sm">
+                        <p class="mb-2"><strong>β (Red):</strong> The noise schedule determines how quickly noise is added during the forward process.</p>
+                        <p class="mb-2"><strong>α (Green):</strong> The signal preservation factor (α = 1-β) represents how much of the original signal is preserved at each step.</p>
+                        <p class="mb-2"><strong>ᾱ (Blue):</strong> The cumulative product shows the compounding effect of signal preservation across multiple steps.</p>
+                        <p><strong>√(1-ᾱ) (Purple):</strong> The noise magnitude indicates the amount of noise present at each timestep.</p>
+                    </div>
+                </div>
+                
+                <div class="grid-2 mt-8">
+                    <div class="glass-card hover:bg-opacity-90 transition-all duration-300">
+                        <h4 class="text-lg font-semibold mb-2">Initial Timesteps (t→0)</h4>
+                        <ul class="list-disc pl-5 space-y-1">
+                            <li>Low noise addition rate (β≈0)</li>
+                            <li>High signal preservation (α≈1)</li>
+                            <li>Minimal accumulated noise (√(1-ᾱ)≈0)</li>
+                        </ul>
+                    </div>
+                    <div class="glass-card hover:bg-opacity-90 transition-all duration-300">
+                        <h4 class="text-lg font-semibold mb-2">Final Timesteps (t→T)</h4>
+                        <ul class="list-disc pl-5 space-y-1">
+                            <li>Higher noise addition rate (β↑)</li>
+                            <li>Lower cumulative signal preservation (ᾱ↓)</li>
+                            <li>Increased noise magnitude (√(1-ᾱ)↑)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Practical Implementation Considerations -->
+            <div class="glass-card interactive-card" data-aos="fade-up" data-aos-delay="300">
+                <h3 class="text-2xl font-bold mb-4 text-purple-400">C. Practical Implementation Considerations</h3>
+                <p class="mb-4">When implementing diffusion models, several practical considerations must be addressed to achieve optimal performance:</p>
+                
+                <div class="grid-2 my-6">
+                    <div class="glass-card hover:shadow-lg transition-shadow duration-300">
+                        <h4 class="text-lg font-semibold mb-2 text-blue-300"><i class="fas fa-sliders-h mr-2"></i>Noise Schedule</h4>
+                        <p class="mb-2">The choice of noise schedule (βₜ) significantly impacts model performance:</p>
+                        <ul class="list-disc pl-5 space-y-1 text-gray-300">
+                            <li>Linear schedules are simple but may not be optimal</li>
+                            <li>Cosine schedules provide smoother transitions</li>
+                            <li>Sigmoid schedules offer greater control</li>
+                        </ul>
+                    </div>
+                    <div class="glass-card hover:shadow-lg transition-shadow duration-300">
+                        <h4 class="text-lg font-semibold mb-2 text-purple-300"><i class="fas fa-network-wired mr-2"></i>Network Architecture</h4>
+                        <p class="mb-2">The choice of neural network architecture is crucial:</p>
+                        <ul class="list-disc pl-5 space-y-1 text-gray-300">
+                            <li>U-Net architectures with skip connections</li>
+                            <li>Attention mechanisms for global context</li>
+                            <li>Time embedding to condition on diffusion step</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="grid-2 mt-6">
+                    <div class="glass-card hover:shadow-lg transition-shadow duration-300">
+                        <h4 class="text-lg font-semibold mb-2 text-red-300"><i class="fas fa-bolt mr-2"></i>Sampling Efficiency</h4>
+                        <p class="mb-2">Improving the efficiency of the sampling process:</p>
+                        <ul class="list-disc pl-5 space-y-1 text-gray-300">
+                            <li>DDIM sampling for faster inference</li>
+                            <li>Progressive distillation techniques</li>
+                            <li>Adaptive step size methods</li>
+                        </ul>
+                    </div>
+                    <div class="glass-card hover:shadow-lg transition-shadow duration-300">
+                        <h4 class="text-lg font-semibold mb-2 text-orange-300"><i class="fas fa-magic mr-2"></i>Conditioning</h4>
+                        <p class="mb-2">Methods to guide the generation process:</p>
+                        <ul class="list-disc pl-5 space-y-1 text-gray-300">
+                            <li>Classifier guidance for controlled generation</li>
+                            <li>Text conditioning via cross-attention</li>
+                            <li>Image conditioning for inpainting or style transfer</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Applications Section -->
+    <section class="section" id="applications">
+        <div class="container mx-auto">
+            <h2 class="text-3xl md:text-4xl font-bold mb-6 text-center gradient-text gradient-border" data-aos="fade-up">V. Applications and Use Cases</h2>
+            
+            <div class="grid-3 mb-8">
+                <div class="flip-card" data-aos="fade-up" data-aos-delay="100">
+                    <div class="flip-card-inner">
+                        <div class="flip-card-front glass-card">
+                            <div class="text-center">
+                                <i class="fas fa-image text-blue-400 text-4xl mb-4"></i>
+                                <h3 class="text-xl font-bold">Image Generation</h3>
+                                <p class="text-sm text-gray-400 mt-2">(Hover to learn more)</p>
+                            </div>
+                        </div>
+                        <div class="flip-card-back">
+                            <p class="text-white text-center">The most prominent application of diffusion models is high-quality image generation. Models like DALL-E 2, Stable Diffusion, and Midjourney have demonstrated remarkable capabilities in generating photorealistic images from text descriptions.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flip-card" data-aos="fade-up" data-aos-delay="200">
+                    <div class="flip-card-inner">
+                        <div class="flip-card-front glass-card">
+                            <div class="text-center">
+                                <i class="fas fa-exchange-alt text-purple-400 text-4xl mb-4"></i>
+                                <h3 class="text-xl font-bold">Image-to-Image Translation</h3>
+                                <p class="text-sm text-gray-400 mt-2">(Hover to learn more)</p>
+                            </div>
+                        </div>
+                        <div class="flip-card-back">
+                            <p class="text-white text-center">Diffusion models excel at image-to-image translation tasks, such as inpainting (filling in missing parts of an image), outpainting (extending an image beyond its original boundaries), and style transfer (applying the artistic style of one image to another).</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flip-card" data-aos="fade-up" data-aos-delay="300">
+                    <div class="flip-card-inner">
+                        <div class="flip-card-front glass-card">
+                            <div class="text-center">
+                                <i class="fas fa-search-plus text-red-400 text-4xl mb-4"></i>
+                                <h3 class="text-xl font-bold">Super-Resolution</h3>
+                                <p class="text-sm text-gray-400 mt-2">(Hover to learn more)</p>
+                            </div>
+                        </div>
+                        <div class="flip-card-back">
+                            <p class="text-white text-center">Diffusion models have shown promising results in super-resolution tasks, where low-resolution images are upscaled to higher resolutions whilst adding realistic details that were not present in the original image.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grid-2 mt-8">
+                <div class="glass-card interactive-card" data-aos="fade-up" data-aos-delay="400">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-volume-up text-green-400 text-4xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 text-center">Audio Generation</h3>
+                    <p class="text-gray-300">Beyond images, diffusion models have been applied to audio generation, producing realistic speech, music, and sound effects. Models like AudioLDM and Riffusion demonstrate the versatility of the diffusion framework across different data modalities.</p>
+                </div>
+                
+                <div class="glass-card interactive-card" data-aos="fade-up" data-aos-delay="500">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-cube text-yellow-400 text-4xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 text-center">3D Generation</h3>
+                    <p class="text-gray-300">Recent research has extended diffusion models to 3D generation, creating detailed 3D models from text descriptions or 2D images. This has significant implications for fields like computer graphics, virtual reality, and product design.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Challenges Section -->
+    <section class="section bg-gray-900" id="challenges">
+        <div class="container mx-auto">
+            <h2 class="text-3xl md:text-4xl font-bold mb-6 text-center gradient-text gradient-border" data-aos="fade-up">VI. Challenges and Limitations</h2>
+            
+            <div class="glass-card mb-8 interactive-card" data-aos="fade-up" data-aos-delay="200">
+                <p class="mb-4">Despite their impressive capabilities, diffusion models face several challenges and limitations:</p>
+                
+                <div class="grid-2 my-6">
+                    <div class="glass-card hover:bg-red-900 hover:bg-opacity-20 transition-all duration-300">
+                        <h3 class="text-xl font-bold mb-3 text-red-400"><i class="fas fa-tachometer-alt mr-2"></i>Computational Efficiency</h3>
+                        <p class="text-gray-300">The iterative nature of the denoising process makes inference with diffusion models computationally expensive compared to GANs or VAEs. This can limit their deployment in resource-constrained environments or real-time applications.</p>
+                    </div>
+                    
+                    <div class="glass-card hover:bg-yellow-900 hover:bg-opacity-20 transition-all duration-300">
+                        <h3 class="text-xl font-bold mb-3 text-yellow-400"><i class="fas fa-balance-scale mr-2"></i>Training Stability</h3>
+                        <p class="text-gray-300">Whilst more stable than GANs, training diffusion models still requires careful tuning of hyperparameters and architectural choices to achieve optimal results.</p>
+                    </div>
+                </div>
+                
+                <div class="grid-2 mt-6">
+                    <div class="glass-card hover:bg-green-900 hover:bg-opacity-20 transition-all duration-300">
+                        <h3 class="text-xl font-bold mb-3 text-green-400"><i class="fas fa-chart-line mr-2"></i>Evaluation Metrics</h3>
+                        <p class="text-gray-300">Evaluating the quality of generated samples remains challenging, with metrics like FID (Fréchet Inception Distance) providing only partial insights into model performance.</p>
+                    </div>
+                    
+                    <div class="glass-card hover:bg-blue-900 hover:bg-opacity-20 transition-all duration-300">
+                        <h3 class="text-xl font-bold mb-3 text-blue-400"><i class="fas fa-exclamation-triangle mr-2"></i>Ethical Considerations</h3>
+                        <p class="text-gray-300">As with all powerful generative models, diffusion models raise ethical concerns regarding potential misuse for creating deepfakes, generating misleading content, or reproducing copyrighted material.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Future Directions Section -->
+    <section class="section" id="future">
+        <div class="container mx-auto">
+            <h2 class="text-3xl md:text-4xl font-bold mb-6 text-center gradient-text gradient-border" data-aos="fade-up">VII. Future Directions</h2>
+            
+            <div class="glass-card interactive-card" data-aos="fade-up" data-aos-delay="200">
+                <p class="mb-6">Several promising research directions could address current limitations and expand the capabilities of diffusion models:</p>
+                
+                <div class="grid-2 my-6">
+                    <div class="glass-card hover:bg-blue-900 hover:bg-opacity-20 transition-all duration-300">
+                        <h3 class="text-xl font-bold mb-3 text-blue-400"><i class="fas fa-rocket mr-2"></i>Efficiency Improvements</h3>
+                        <p class="text-gray-300">Ongoing research aims to reduce the computational cost of diffusion models through techniques like distillation, progressive distillation, and more efficient sampling methods.</p>
+                    </div>
+                    
+                    <div class="glass-card hover:bg-purple-900 hover:bg-opacity-20 transition-all duration-300">
+                        <h3 class="text-xl font-bold mb-3 text-purple-400"><i class="fas fa-project-diagram mr-2"></i>Multi-Modal Generation</h3>
+                        <p class="text-gray-300">Extending diffusion models to simultaneously handle multiple data modalities (e.g., text, image, audio, video) could enable more sophisticated creative applications.</p>
+                    </div>
+                </div>
+                
+                <div class="grid-2 mt-6">
+                    <div class="glass-card hover:bg-red-900 hover:bg-opacity-20 transition-all duration-300">
+                        <h3 class="text-xl font-bold mb-3 text-red-400"><i class="fas fa-sliders-h mr-2"></i>Controllable Generation</h3>
+                        <p class="text-gray-300">Enhancing the controllability of diffusion models would allow for more precise guidance of the generation process, enabling users to specify detailed attributes and characteristics of the desired output.</p>
+                    </div>
+                    
+                    <div class="glass-card hover:bg-green-900 hover:bg-opacity-20 transition-all duration-300">
+                        <h3 class="text-xl font-bold mb-3 text-green-400"><i class="fas fa-brain mr-2"></i>Theoretical Understanding</h3>
+                        <p class="text-gray-300">Deepening our theoretical understanding of why diffusion models work so well could lead to more principled design choices and potentially new architectures with improved performance.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Conclusion Section -->
+    <section class="section bg-gray-900" id="conclusion">
+        <div class="container mx-auto">
+            <h2 class="text-3xl md:text-4xl font-bold mb-6 text-center gradient-text gradient-border" data-aos="fade-up">VIII. Conclusion</h2>
+            
+            <div class="glass-card interactive-card" data-aos="fade-up" data-aos-delay="200">
+                <p class="mb-4">Diffusion models represent a significant advancement in generative AI, offering superior quality, stability, and versatility compared to previous approaches. Their elegant mathematical formulation, inspired by principles from physics, provides a powerful framework for modelling complex data distributions.</p>
+                
+                <p class="mb-4">Through our visualisations and analysis, we have demonstrated the key mechanisms that drive diffusion models and explored their wide-ranging applications. Despite challenges related to computational efficiency and ethical considerations, the future of diffusion models appears promising, with ongoing research addressing current limitations and expanding their capabilities.</p>
+                
+                <p>As these models continue to evolve, they are likely to play an increasingly important role in creative applications, scientific research, and commercial products, further blurring the boundary between human and machine creativity.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- References Section -->
+    <section class="section" id="references">
+        <div class="container mx-auto">
+            <h2 class="text-3xl md:text-4xl font-bold mb-6 text-center gradient-text gradient-border" data-aos="fade-up">References</h2>
+            
+            <div class="glass-card interactive-card" data-aos="fade-up" data-aos-delay="200">
+                <ol class="list-decimal pl-5 space-y-3">
+                    <li>AssemblyAI. (2022, May 12). Introduction to Diffusion Models for Machine Learning. <a href="https://assemblyai.com/blog/diffusion-models-for-machine-learning-introduction" class="text-blue-400 hover:underline hover:text-blue-300 transition-colors" target="_blank">https://assemblyai.com/blog/diffusion-models-for-machine-learning-introduction</a></li>
+                    
+                    <li>Karagiannakos, S., & Adaloglou, N. (2022, September 29). How diffusion models work: the math from scratch. AI Summer. <a href="https://theaisummer.com/diffusion-models/" class="text-blue-400 hover:underline hover:text-blue-300 transition-colors" target="_blank">https://theaisummer.com/diffusion-models/</a></li>
+                    
+                    <li>IBM. (2024, August 21). What are Diffusion Models? <a href="https://www.ibm.com/think/topics/diffusion-models" class="text-blue-400 hover:underline hover:text-blue-300 transition-colors" target="_blank">https://www.ibm.com/think/topics/diffusion-models</a></li>
+                    
+                    <li>Ho, J., Jain, A., & Abbeel, P. (2020). Denoising diffusion probabilistic models. Advances in Neural Information Processing Systems.</li>
+                    
+                    <li>Sohl-Dickstein, J., Weiss, E., Maheswaranathan, N., & Ganguli, S. (2015). Deep unsupervised learning using nonequilibrium thermodynamics. International Conference on Machine Learning.</li>
+                    
+                    <li>Song, Y., & Ermon, S. (2019). Generative modeling by estimating gradients of the data distribution. Advances in Neural Information Processing Systems.</li>
+                    
+                    <li>Dhariwal, P., & Nichol, A. (2021). Diffusion models beat GANs on image synthesis. Advances in Neural Information Processing Systems.</li>
+                    
+                    <li>Rombach, R., Blattmann, A., Lorenz, D., Esser, P., & Ommer, B. (2022). High-resolution image synthesis with latent diffusion models. Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition.</li>
+                </ol>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 py-10">
+        <div class="container mx-auto text-center">
+            <img src="https://page1.genspark.site/v1/base64_upload/78f221cafdaa44cab6f81bf7b697e533" alt="DiffusionForge Logo" class="w-24 mx-auto mb-4">
+            <p class="text-gray-400">DiffusionForge: Exploring the Mathematics and Applications of Diffusion Models</p>
+            <p class="text-gray-500 text-sm mt-2">Day 5 of 365 Days of STEM, AI, and Robotics Research</p>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize AOS for animations
+        document.addEventListener('DOMContentLoaded', function() {
+            AOS.init({
+                duration: 800,
+                once: true,
+                mirror: false
+            });
+            
+            // Progress bar
+            window.addEventListener('scroll', function() {
+                let winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+                let height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+                let scrolled = (winScroll / height) * 100;
+                document.getElementById("progressBar").style.width = scrolled + "%";
+            });
+            
+            // Create and animate particles
+            createParticles();
+            createBubbles();
+            
+            // Initialize MathJax
+            window.MathJax = {
+                tex: {
+                    inlineMath: [['$', '$'], ['\\(', '\\)']]
+                },
+                svg: {
+                    fontCache: 'global'
+                }
+            };
+            
+            // Smooth scrolling for anchor links
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    
+                    document.querySelector(this.getAttribute('href')).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                });
+            });
+            
+            // Mobile menu toggle
+            const menuButton = document.getElementById('menuButton');
+            const mobileNav = document.getElementById('mobileNav');
+            
+            if (menuButton && mobileNav) {
+                menuButton.addEventListener('click', function() {
+                    if (mobileNav.classList.contains('hidden')) {
+                        mobileNav.classList.remove('hidden');
+                    } else {
+                        mobileNav.classList.add('hidden');
+                    }
+                });
+            }
+            
+            // Fade in hero elements with delays
+            setTimeout(() => {
+                document.getElementById('heroSubtitle').style.opacity = '1';
+                document.getElementById('heroSubtitle').style.transition = 'opacity 1s ease';
+            }, 1500);
+            
+            setTimeout(() => {
+                document.getElementById('heroDescription').style.opacity = '1';
+                document.getElementById('heroDescription').style.transition = 'opacity 1s ease';
+            }, 2000);
+            
+            setTimeout(() => {
+                document.getElementById('heroButton').style.opacity = '1';
+                document.getElementById('heroButton').style.transition = 'opacity 1s ease';
+            }, 2500);
+            
+            setTimeout(() => {
+                document.getElementById('heroDiffusionDemo').style.opacity = '1';
+                document.getElementById('heroDiffusionDemo').style.transition = 'opacity 1s ease';
+            }, 3000);
+            
+            // Interactive diffusion demo
+            const diffusionSlider = document.getElementById('diffusionSlider');
+            const diffusionCircle = document.getElementById('diffusionCircle');
+            const noiseOverlay = document.getElementById('noiseOverlay');
+            
+            if (diffusionSlider && diffusionCircle && noiseOverlay) {
+                diffusionSlider.addEventListener('input', function() {
+                    const value = this.value;
+                    noiseOverlay.style.opacity = value / 100;
+                    
+                    // Adjust the circle's appearance based on noise level
+                    diffusionCircle.style.filter = `blur(${value / 10}px)`;
+                    diffusionCircle.style.opacity = 1 - (value / 200);
+                    
+                    // Move the circle slightly based on noise level for a "jittering" effect
+                    if (value > 50) {
+                        diffusionCircle.style.transform = `translateY(-50%) translateX(${Math.sin(Date.now() / 200) * 5}px)`;
+                    } else {
+                        diffusionCircle.style.transform = 'translateY(-50%)';
+                    }
+                });
+            }
+            
+            // Forward and reverse process animations
+            const startForwardAnimation = document.getElementById('startForwardAnimation');
+            const startReverseAnimation = document.getElementById('startReverseAnimation');
+            const forwardProgress = document.getElementById('forwardProgress');
+            const reverseProgress = document.getElementById('reverseProgress');
+            
+            if (startForwardAnimation && forwardProgress) {
+                startForwardAnimation.addEventListener('click', function() {
+                    forwardProgress.style.width = '0%';
+                    setTimeout(() => {
+                        forwardProgress.style.width = '100%';
+                        forwardProgress.style.transition = 'width 2s ease';
+                    }, 100);
+                });
+            }
+            
+            if (startReverseAnimation && reverseProgress) {
+                startReverseAnimation.addEventListener('click', function() {
+                    reverseProgress.style.width = '0%';
+                    setTimeout(() => {
+                        reverseProgress.style.width = '100%';
+                        reverseProgress.style.transition = 'width 2s ease';
+                    }, 100);
+                });
+            }
+        });
+        
+        // Create animated particles
+        function createParticles() {
+            const particlesContainer = document.getElementById('particles');
+            if (!particlesContainer) return;
+            
+            const particleCount = 30;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                
+                // Random size between 3px and 8px
+                const size = Math.random() * 5 + 3;
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                
+                // Random position
+                const posX = Math.random() * 100;
+                const posY = Math.random() * 100;
+                particle.style.left = `${posX}%`;
+                particle.style.top = `${posY}%`;
+                
+                // Random color from the gradient
+                const colors = [
+                    'rgba(59, 130, 246, 0.8)', // Blue
+                    'rgba(139, 92, 246, 0.8)',  // Purple
+                    'rgba(239, 68, 68, 0.8)'    // Red
+                ];
+                particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                
+                // Animation properties
+                particle.style.setProperty('--x-end', `${(Math.random() * 200 - 100)}px`);
+                const duration = Math.random() * 4 + 6; // 6-10 seconds
+                particle.style.animation = `particle-animation ${duration}s ease infinite`;
+                particle.style.animationDelay = `${Math.random() * 5}s`;
+                
+                particlesContainer.appendChild(particle);
+            }
+        }
+        
+        // Create floating bubbles
+        function createBubbles() {
+            const bubblesContainer = document.getElementById('bubbles');
+            if (!bubblesContainer) return;
+            
+            const bubbleCount = 15;
+            
+            for (let i = 0; i < bubbleCount; i++) {
+                const bubble = document.createElement('div');
+                bubble.className = 'bubble';
+                
+                // Random size
+                const size = Math.random() * 100 + 50;
+                bubble.style.width = `${size}px`;
+                bubble.style.height = `${size}px`;
+                
+                // Random position
+                const posX = Math.random() * 100;
+                bubble.style.left = `${posX}%`;
+                bubble.style.bottom = `-${size}px`;
+                
+                // Animation duration
+                const duration = Math.random() * 15 + 15;
+                bubble.style.setProperty('--duration', `${duration}s`);
+                
+                // Random delay
+                bubble.style.animationDelay = `${Math.random() * 10}s`;
+                
+                bubblesContainer.appendChild(bubble);
+            }
+        }
+        
+        // GSAP animations for specific elements
+        gsap.from(".floating", {
+            y: 20,
+            duration: 2,
+            repeat: -1,
+            yoyo: true,
+            ease: "power1.inOut"
+        });
+        
+        // Random animation for noise dots
+        function animateNoise() {
+            const container = document.getElementById('noiseContainer');
+            if (!container) return;
+            
+            // Clear existing dots
+            container.innerHTML = '';
+            
+            // Create new dots
+            for (let i = 0; i < 100; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'noise-dot';
+                
+                // Random position
+                dot.style.left = `${Math.random() * 100}%`;
+                dot.style.top = `${Math.random() * 100}%`;
+                
+                // Random opacity
+                dot.style.opacity = Math.random() * 0.5 + 0.1;
+                
+                container.appendChild(dot);
+            }
+            
+            // Schedule next animation frame
+            requestAnimationFrame(animateNoise);
+        }
+    </script>
+</body>
+</html>
